@@ -1,0 +1,185 @@
+import asyncio
+import os
+import time
+from functools import wraps
+from typing import Literal
+from urllib.parse import urlparse
+from openai import NOT_GIVEN, AsyncOpenAI, OpenAI
+import openai
+from tensorneko_util.util import Singleton
+
+from .util.config import Config
+from .util.console import logger
+
+
+def parse_model_name(model_spec: str) -> tuple[str, str]:
+    # Used to parse the model specification string
+    # Example: "openai::gpt-4o-mini" -> ("openai", "gpt-4o-mini")
+    assert "::" in model_spec, "Model specification must contain '::' to separate api_type and model_name"
+    api_type, model_name = model_spec.split("::", 1)
+    return api_type.lower(), model_name
+
+
+@Singleton
+class Cost:
+    def __init__(self):
+        self.cost = 0
+        self.input_tokens = 0
+        self.output_tokens = 0
+    
+    def add(self, chatgpt_response, model_name):
+        if model_name.startswith("gpt-4o-mini"):
+            input_pricing = 0.15 / 1000000
+            output_pricing = 0.6 / 1000000
+        elif model_name.startswith("gpt-4o"):
+            input_pricing = 2.5 / 1000000
+            output_pricing = 10 / 1000000
+        else:
+            input_pricing = 0
+            output_pricing = 0
+
+        price = chatgpt_response.usage.prompt_tokens * input_pricing + chatgpt_response.usage.completion_tokens * output_pricing
+        self.cost += price
+        self.input_tokens += chatgpt_response.usage.prompt_tokens
+        self.output_tokens += chatgpt_response.usage.completion_tokens
+
+
+def _openai_client_kwargs() -> dict:
+    kwargs = {"timeout": 30.}
+    base_url = os.environ.get("OPENAI_BASE_URL", "").strip()
+    if base_url != "":
+        parsed = urlparse(base_url)
+        if parsed.scheme not in {"http", "https"} or parsed.hostname is None:
+            raise ValueError("OPENAI_BASE_URL must be an absolute HTTP(S) URL, for example https://your-endpoint.example.com/v1.")
+        kwargs["base_url"] = base_url
+    return kwargs
+
+
+try:
+    openai_client = AsyncOpenAI(**_openai_client_kwargs())
+    openai_client_sync = OpenAI(**_openai_client_kwargs())
+except (openai.OpenAIError, ValueError) as e:
+    openai_client = None
+    openai_client_sync = None
+    logger.debug(f"OpenAI client is not configured, ChatGPT will not work. {e}")
+else:
+    logger.debug("OpenAI Client is set.")
+
+_semaphore = asyncio.Semaphore(Config.base_config["llm_max_concurrency"])
+
+
+def handle_openai_exceptions(func):
+    max_trial = Config.base_config["llm_max_retry"]
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        for _ in range(max_trial):
+            try:
+                logger.debug(f"Call OpenAI API. {args, kwargs}")
+                response = await func(*args, **kwargs)
+                logger.debug(f"Response: {response}")
+                return response
+            except openai.APITimeoutError as e:
+                logger.error(f"OpenAI API Timeout: {e}")
+                pass
+            except openai.APIConnectionError as e:
+                logger.error(f"OpenAI API Connection Error: {e}")
+                pass
+            except openai.RateLimitError as e:
+                logger.error(f"OpenAI Rate Limit Error: {e}")
+                time.sleep(1)
+                pass
+            except openai.BadRequestError as e:
+                # maybe trigger the content filter, raise directly
+                raise e
+            except openai.APIStatusError as e:
+                # server side problem, should raise directly
+                raise e
+            except Exception as e:
+                raise e
+            logger.debug("Retry OpenAI API call.")
+    return wrapper
+
+
+@handle_openai_exceptions
+async def chatgpt(model_name: str, messages: list[dict[str, str]], format: Literal["", "json"] = "") -> str | None:
+    if openai_client is None:
+        raise RuntimeError("OpenAI client is not configured. Set OPENAI_API_KEY and optionally OPENAI_BASE_URL.")
+    response_format = {"type": "json_object"} if format == "json" else NOT_GIVEN
+    async with _semaphore:
+        response = await openai_client.chat.completions.create(model=model_name,
+            messages=messages, response_format=response_format)
+        Cost.add(response, model_name)
+        logger.debug(f"Cost: {Cost.cost:.4f}, input: {Cost.input_tokens}, output: {Cost.output_tokens}")
+    return response.choices[0].message.content
+
+
+async def llm(model_spec: str, prompt: str, format: Literal["", "json"] = "") -> str | None:
+    api_type, model_name = parse_model_name(model_spec)
+    
+    if api_type == "openai":
+        return await chatgpt(model_name, [{"role": "user", "content": prompt}], format)
+    else:
+        raise ValueError(f"Unknown API type: {api_type}")
+
+
+async def llm_with_message(model_spec: str, messages: list[dict[str, str]], format: Literal["", "json"] = "") -> str | None:
+    api_type, model_name = parse_model_name(model_spec)
+    
+    if api_type == "openai":
+        return await chatgpt(model_name, messages, format)
+    else:
+        raise ValueError(f"Unknown API type: {api_type}")
+
+
+# sync versions
+def handle_openai_exceptions_sync(func):
+    max_trial = Config.base_config["llm_max_retry"]
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        for _ in range(max_trial):
+            try:
+                logger.debug(f"Call OpenAI API. {args, kwargs}")
+                return func(*args, **kwargs)
+            except openai.APITimeoutError as e:
+                logger.error(f"OpenAI API Timeout: {e}")
+                pass
+            except openai.APIConnectionError as e:
+                logger.error(f"OpenAI API Connection Error: {e}")
+                pass
+            except openai.RateLimitError as e:
+                logger.error(f"OpenAI Rate Limit Error: {e}")
+                time.sleep(1)
+                pass
+            except openai.BadRequestError as e:
+                # maybe exceed the length, should raise directly
+                raise e
+            except openai.APIStatusError as e:
+                # server side problem, should raise directly
+                raise e
+            except Exception:
+                raise
+            logger.debug("Retry OpenAI API call.")
+    return wrapper
+
+
+def llm_sync(model_spec: str, prompt: str, format: Literal["", "json"] = "") -> str | None:
+    api_type, model_name = parse_model_name(model_spec)
+    
+    if api_type == "openai":
+        return chatgpt_sync(model_name, [{"role": "user", "content": prompt}], format)
+    else:
+        raise ValueError(f"Unknown API type: {api_type}")
+
+
+@handle_openai_exceptions_sync
+def chatgpt_sync(model_name: str, messages: list[dict[str, str]], format: Literal["", "json"] = "") -> str | None:
+    if openai_client_sync is None:
+        raise RuntimeError("OpenAI client is not configured. Set OPENAI_API_KEY and optionally OPENAI_BASE_URL.")
+    response_format = {"type": "json_object"} if format == "json" else NOT_GIVEN
+    response = openai_client_sync.chat.completions.create(model=model_name,
+            messages=messages, response_format=response_format)
+    Cost.add(response, model_name)
+    logger.debug(f"Cost: {Cost.cost:.4f}, input: {Cost.input_tokens}, output: {Cost.output_tokens}")
+    return response.choices[0].message.content

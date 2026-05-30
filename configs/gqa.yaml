@@ -1,0 +1,41 @@
+dataset: gqa
+task: vqa
+
+debug: True
+llm_max_retry: 3
+llm_max_concurrency: 1000
+ratio_box_area_to_image_area: 0.0
+crop_larger_margin: True
+
+llm_model: "openai::gpt-5.4-nano"
+llm_code_model: "openai::gpt-5.4-nano"
+depth_model: "depth_anything_v2"
+grounding_model: "florence2"
+vlm_model: "internvl2.5_8b"
+vlm_caption_model: "internvl2.5_8b"
+verify_property_model: "xvlm"
+verify_property_thresh_xvlm: 0.5
+verify_property_thresh_clip: 0.5
+grounding_threshold: 0.4
+
+max_transition_steps: 15
+max_next_iterations: 5
+
+hyper_agent:
+  model_name: "Qwen/Qwen3-4B"
+
+specialized_agent:
+  vqa_model: "internvl2.5_8b"
+
+stepwise_reasoner:
+  instruction_planner:
+    num_instructions: 5
+    num_trials: 5
+  num_code_generator_trials: 5
+
+answerer:
+  num_summarizer_trials: 3
+  num_answerer_trials: 3
+  
+oneshot_reasoner:
+  max_iterations: 3

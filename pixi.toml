@@ -1,0 +1,89 @@
+[workspace]
+authors = ["ControlNet <smczx@hotmail.com>"]
+channels = ["nvidia/label/cuda-12.9.0", "nvidia/label/cuda-11.8.0", "conda-forge/label/rust_dev", "conda-forge", "pytorch"]
+description = "MATA"
+name = "mata"
+platforms = ["linux-64"]
+version = "0.1.0"
+channel-priority = "disabled"
+
+[environments]
+default = ["main"]
+
+[feature.main.tasks]
+infer_once = "python scripts/infer_once.py --base_config configs/gqa.yaml"
+infer_dataset = "python scripts/infer_dataset.py --base_config configs/gqa.yaml --data_root ./data"
+download_model = "python -m mata.download_model --base_config configs/gqa.yaml --extra_packages mata.tool"
+
+[feature.main.dependencies]
+setuptools = "*"
+maturin = "*"
+cmake = "*"
+ninja = "*"
+python = { version = "3.12.*", channel = "conda-forge" }
+pytorch = { version = "==2.5.1", channel = "pytorch" }
+torchvision = { version = "==0.20.1", channel = "pytorch" }
+pytorch-cuda = { version = "~=11.8.0", channel = "pytorch" }
+cuda = { version = "==11.8.0", channel = "nvidia/label/cuda-11.8.0" }
+cuda-libraries-dev = { version = "==11.8.0", channel = "nvidia/label/cuda-11.8.0" }
+cuda-version = "==11.8"
+numpy = "<2.0"
+fsspec = "<=2026.2.0"
+rust = { version = "*", channel = "conda-forge/label/rust_dev" }
+ipywidgets = ">=8.1.5,<9"
+ipykernel = ">=6.29.5,<7"
+shapely = ">=2.0.6,<3"
+terminaltables = ">=3.1.10,<4"
+
+[feature.main.pypi-options]
+no-build-isolation = ["flash_attn", "vllm"]
+
+[feature.main.pypi-dependencies]
+mata = { path = ".", editable = true }
+fastapi = "*"
+uvicorn = "*"
+starlette = "*"
+openai = "*"
+websockets = "~=11.0"
+tensorneko_util = "==0.3.21"
+tensorneko = "==0.3.21"
+requests = "~=2.0"
+word2number = "~=1.0"
+python_dateutil = ">=2.8.0, <3"
+timm = "==0.9.16"
+transformers = ">=4.57.1, <5"
+datasets = ">=2.19,<5"
+peft = "<=0.14"
+tokenizers = ">=0.21"
+chardet = "~=5.2.0"
+python-dotenv = "~=1.0.0"
+opencv-python = "~=4.9.0"
+accelerate = "~=1.5.0"
+lmdeploy = "~=0.10.0"
+bitsandbytes = "~=0.45.0"
+nltk = "==3.8.1"
+pydantic = "~=2.0"
+yacs = "==0.1.8"
+pycocotools = "==2.0.6"
+prettytable = "==3.4.1"
+ftfy = "==6.1.1"
+torchmetrics = "==1.4.0.post0"
+scipy = "==1.14.1"
+gdown = "==5.2.0"
+rich = "==13.7.1"
+ollama = "~=0.3.0"
+protobuf = "~=3.19.0"
+bbox_visualizer = "==0.1.0"
+problog = "~=2.2.0"
+ultralytics = "*"
+scikit-image = ">=0.24.0, <0.25"
+lmdb = "==1.4.1"
+open-clip-torch = ">=2.29.0, <3"
+flash_attn = { url = "https://github.com/ControlNet/flash-attention-prebuild-wheels/releases/download/v0.0.7/flash_attn-2.7.4.post1+cu118torch2.5-cp312-cp312-linux_x86_64.whl" }
+aiosqlite = ">=0.21.0, <0.22"
+sentencepiece = ">=0.2.0, <0.3"
+partial-json-parser = ">=0.2.1.1.post5, <0.3"
+angle-emb = ">=0.5.6, <0.6"
+dill = ">=0.3.8, <0.4"
+mita-client = ">=0.0.6, <0.0.7"
+lm-format-enforcer = ">=0.11.0, <0.12"

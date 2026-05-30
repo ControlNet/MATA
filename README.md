@@ -18,33 +18,142 @@
     </a>
 </div>
 
-**This repo is the official implementation for the paper [MATA: A Trainable Hierarchical Automaton System for Multi-Agent Visual Reasoning](https://arxiv.org/abs/2601.19204), accepted at ICLR 2026.**
+This repo is the official implementation for the paper [MATA: A Trainable Hierarchical Automaton System for Multi-Agent Visual Reasoning](https://arxiv.org/abs/2601.19204), accepted at ICLR 2026.
 
-MATA (Multi-Agent hierarchical Trainable Automaton) formulates visual reasoning as a hierarchical finite-state automaton. A trainable hyper agent learns high-level transitions across collaborating and competing agents, while each agent executes a small rule-based sub-automaton for reliable micro-control. This design provides transparent execution traces and strong performance on complex visual reasoning benchmarks.
+MATA formulates visual reasoning as a hierarchical finite-state automaton. A Hyper Agent controls high-level transitions among specialized agents, oneshot reasoning, stepwise reasoning, and answering states, while all agents communicate through shared memory for transparent execution traces.
 
-## News
+## Release
 
 - [2026/02] MATA is accepted at ICLR 2026.
 
-## Abstract
+## TODOs
 
-Recent vision-language models have strong perceptual ability but their implicit reasoning is hard to explain and easily generates hallucinations on complex queries. Compositional methods improve interpretability, but most rely on a single agent or hand-crafted pipeline and cannot decide when to collaborate across complementary agents or compete among overlapping ones. We introduce MATA (Multi-Agent hierarchical Trainable Automaton), a multi-agent system presented as a hierarchical finite-state automaton for visual reasoning whose top-level transitions are chosen by a trainable hyper agent. Each agent corresponds to a state in the hyper automaton, and runs a small rule-based sub-automaton for reliable micro-control. All agents read and write a shared memory, yielding transparent execution history. To supervise the hyper agent's transition policy, we build transition-trajectory trees and transform to memory-to-next-state pairs, forming the MATA-SFT-90K dataset for supervised finetuning (SFT). The finetuned LLM as the transition policy understands the query and the capacity of agents, and it can efficiently choose the optimal agent to solve the task. Across multiple visual reasoning benchmarks, MATA achieves the state-of-the-art results compared with monolithic and compositional baselines.
+We're working on the following TODOs:
 
-## Planned Release
+- [x] Inference code.
+- [ ] MATA-SFT-90K dataset.
+- [ ] Training pipeline.
+- [ ] Official benchmark evaluation scripts.
 
-- [ ] Training and inference
-- [ ] MATA-SFT-90K dataset
-- [ ] Evaluation
+## Installation
+
+Clone this repository and install the pixi environment.
+
+```bash
+git clone https://github.com/ControlNet/MATA.git
+cd MATA
+pixi install
+```
+
+The default environment targets Linux with CUDA and uses the dependencies specified in [pixi.toml](pixi.toml).
+
+## Environment Variables
+
+Create a local `.env` file from the example file.
+
+```bash
+cp .env.example .env
+```
+
+Set your OpenAI or OpenAI-compatible endpoint credentials in `.env`.
+
+```bash
+OPENAI_API_KEY=your-api-key
+OPENAI_BASE_URL=https://your-openai-compatible-endpoint/v1
+```
+
+`OPENAI_BASE_URL` is optional when using the official OpenAI endpoint. Local model and tool caches are controlled by `TORCH_HOME` in `.env`.
+
+## State Controller
+
+The Hyper Agent uses a local LLM State Controller to choose state transitions. The release configs use the public Hugging Face model `Qwen/Qwen3-4B`:
+
+```yaml
+hyper_agent:
+  model_name: "Qwen/Qwen3-4B"
+```
+
+You can replace `model_name` with another Hugging Face model id supported by `transformers.from_pretrained`.
+
+## Download Models
+
+Prepare the vision-language tool models used by MATA.
+
+```bash
+pixi run download_model
+```
+
+This command uses `configs/gqa.yaml` by default and derives the required tool models from the selected task config. To prepare models for another task, pass the corresponding base config.
+
+```bash
+pixi run python -m mata.download_model \
+  --base_config configs/gqa.yaml \
+  --extra_packages mata.tool
+```
+
+## Inference
+
+Run MATA on a single image and query.
+
+```bash
+pixi run python scripts/infer_once.py \
+  --base_config configs/gqa.yaml \
+  --image /path/to/image.jpg \
+  --query "How many red cups are on the left table?"
+```
+
+## Dataset Inference
+
+Run inference on a dataset split.
+
+```bash
+pixi run python scripts/infer_dataset.py \
+  --base_config configs/gqa.yaml \
+  --data_root /path/to/data \
+  --result_folder ./result \
+  --max_samples 1000
+```
+
+The release configs currently cover GQA VQA and RefCOCO grounding. See [configs](configs).
+
+## Code Structure
+
+```text
+src/mata/
+  agent/        Hyper Automaton agents and state controller
+  execution/    ImagePatch runtime and tool execution helpers
+  memory/       Shared memory
+  prompt/       Prompt templates
+  tool/         Vision-language tool wrappers
+  util/         Config, logging, and misc utilities
+
+configs/        Task and model configs
+scripts/        Inference entrypoints
+```
+
+Key paper terms map to the code as follows:
+
+- Hyper Automaton: [src/mata/agent/mata.py](src/mata/agent/mata.py)
+- Hyper Agent and LLM State Controller: [src/mata/agent/hyper_agent.py](src/mata/agent/hyper_agent.py)
+- Specialized Agent: [src/mata/agent/specialized](src/mata/agent/specialized)
+- Oneshot Reasoner: [src/mata/agent/oneshot](src/mata/agent/oneshot)
+- Stepwise Reasoner: [src/mata/agent/stepwise](src/mata/agent/stepwise)
+- Answering State: [src/mata/agent/answering](src/mata/agent/answering)
+- Shared Memory: [src/mata/memory/shared_memory.py](src/mata/memory/shared_memory.py)
 
 ## Citation
 
 If you find this work useful for your research, please consider citing it.
 
 ```bibtex
-@article{cai2026mata,
+@inproceedings{cai2026mata,
   title={MATA: A Trainable Hierarchical Automaton System for Multi-Agent Visual Reasoning},
-  author={Cai, Zhixi and Ke, Fucai and Leo, Kevin and Huang, Sukai and de la Banda, Maria Garcia and Stuckey, Peter J and Rezatofighi, Hamid},
-  journal={arXiv preprint arXiv:2601.19204},
+  author={Cai, Zhixi and Ke, Fucai and Leo, Kevin and Huang, Sukai and Garcia de la Banda, Maria and Stuckey, Peter J. and Rezatofighi, Hamid},
+  booktitle={The Fourteenth International Conference on Learning Representations},
   year={2026}
 }
 ```
+
+## License
+
+This project is released under the [Apache-2.0 License](LICENSE).

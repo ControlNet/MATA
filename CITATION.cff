@@ -1,22 +1,22 @@
 cff-version: 1.2.0
-message: "If you find this work useful for your research, please consider citing it."
+message: "If you find this work useful in your research, please cite it."
 preferred-citation:
-  type: article
-  authors:
-    - family-names: "Cai"
-      given-names: "Zhixi"
-    - family-names: "Ke"
-      given-names: "Fucai"
-    - family-names: "Leo"
-      given-names: "Kevin"
-    - family-names: "Huang"
-      given-names: "Sukai"
-    - family-names: "Garcia de la Banda"
-      given-names: "Maria"
-    - family-names: "Stuckey"
-      given-names: "Peter J."
-    - family-names: "Rezatofighi"
-      given-names: "Hamid"
-  journal: "arXiv preprint arXiv:2601.19204"
+  type: conference-paper
   title: "MATA: A Trainable Hierarchical Automaton System for Multi-Agent Visual Reasoning"
+  authors:
+  - family-names: "Cai"
+    given-names: "Zhixi"
+  - family-names: "Ke"
+    given-names: "Fucai"
+  - family-names: "Leo"
+    given-names: "Kevin"
+  - family-names: "Huang"
+    given-names: "Sukai"
+  - family-names: "Garcia de la Banda"
+    given-names: "Maria"
+  - family-names: "Stuckey"
+    given-names: "Peter J."
+  - family-names: "Rezatofighi"
+    given-names: "Hamid"
+  collection-title: "The Fourteenth International Conference on Learning Representations"
   year: 2026
