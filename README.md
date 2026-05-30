@@ -64,16 +64,14 @@ OPENAI_BASE_URL=https://your-openai-compatible-endpoint/v1
 
 `OPENAI_BASE_URL` is optional when using the official OpenAI endpoint. Local model and tool caches are controlled by `TORCH_HOME` in `.env`.
 
-## State Controller
+## Hyper Agent
 
-The Hyper Agent uses a local LLM State Controller to choose state transitions. The release configs use the public Hugging Face model `Qwen/Qwen3-4B`:
+The Hyper Agent uses a local LLM State Controller to choose state transitions. By default, it uses the Qwen3-4B model, or the future released checkpoint. You can change the model by modifying the `hyper_agent` section in the base config.
 
 ```yaml
 hyper_agent:
   model_name: "Qwen/Qwen3-4B"
 ```
-
-You can replace `model_name` with another Hugging Face model id supported by `transformers.from_pretrained`.
 
 ## Download Models
 
@@ -81,14 +79,6 @@ Prepare the vision-language tool models used by MATA.
 
 ```bash
 pixi run download_model
-```
-
-This command uses `configs/gqa.yaml` by default and derives the required tool models from the selected task config. To prepare models for another task, pass the corresponding base config.
-
-```bash
-pixi run python -m mata.download_model \
-  --base_config configs/gqa.yaml \
-  --extra_packages mata.tool
 ```
 
 ## Inference
@@ -110,11 +100,8 @@ Run inference on a dataset split.
 pixi run python scripts/infer_dataset.py \
   --base_config configs/gqa.yaml \
   --data_root /path/to/data \
-  --result_folder ./result \
-  --max_samples 1000
+  --result_folder ./result
 ```
-
-The release configs currently cover GQA VQA and RefCOCO grounding. See [configs](configs).
 
 ## Code Structure
 
